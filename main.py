@@ -4,31 +4,36 @@ import torch.optim as optim
 from csv_dataloader import get_apnea_dataloader
 from apneanet import get_apnea_model
 from torch.autograd import Variable
+import matplotlib.pyplot as plt
 
 
-def train(model, loader, batch_size, cuda_avail):
+def train(model, train_loader, test_loader, batch_size):
     model.train()
 
+    # for plot
+    # lost_list = []
+    acc_list = []
+
     start_epoch = 0
-    total_epoch = 2
+    total_epoch = 100
     total_loss = 0
 
     # TODO: use some advanced parameters
     criterion = nn.CrossEntropyLoss()
 
     # TODO: try other optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.005)
+    # optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 
     for epoch in range(start_epoch, total_epoch):
         print('\n-----> epoch %d ' % epoch)
         running_loss = 0.0
-        print("len(train_loader) % batch_size :", round(len(loader) / batch_size))
-        len_of_batch = round(len(loader) / batch_size)
+        print("len(train_loader) % batch_size :", round(len(train_loader) / batch_size))
+        len_of_batch = round(len(train_loader) / batch_size)
 
-        for i, (inputs, labels) in enumerate(loader):
-            if cuda_avail:
-                inputs = Variable(inputs.cuda())
-                labels = Variable(labels.cuda())
+        for i, (inputs, labels) in enumerate(train_loader):
+            inputs = Variable(inputs.cuda())
+            labels = Variable(labels.cuda())
 
             optimizer.zero_grad()
 
@@ -45,14 +50,22 @@ def train(model, loader, batch_size, cuda_avail):
                 total_loss += running_loss / batch_size
                 print(" [%d, %5d] loss : %.3f" % (epoch + 1, i + 1, running_loss / batch_size))
                 running_loss = 0.0
+        print('Testing')
+        test_acc = test(model, test_loader)
+        acc_list.append(test_acc)
 
     print('Finished Training')
     total_loss = total_loss / len_of_batch
     print("[%d epoch loss :%.3f" % (epoch + 1, total_loss))
     total_loss = 0
+    plt.title('Adam Optimizer, batch size 64')
+    plt.xlabel('epoch')
+    plt.ylabel('acc')
+    plt.plot(acc_list)
+    plt.show()
 
 
-def test(model, loader, cuda_avail):
+def test(model, loader):
     model.eval()
     correct = 0
     total = 0
@@ -66,30 +79,29 @@ def test(model, loader, cuda_avail):
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
+    test_acc = 100 * correct / total
     print('Accuracy of the network on the %d test signals: %d %%' % (
-            total, 100 * correct / total))
+            total, test_acc))
+    return test_acc
 
 
 def main():
     # get my awesome model
     model = get_apnea_model()
 
-    # Check if gpu support is available
-    # TODO: Use GPU model could have some more elegant implement ways
-    cuda_avail = torch.cuda.is_available()
-
-    if cuda_avail:
-        model.cuda()
+    # assuming you have a GPU
+    model.cuda()
 
     # get dataset loader
-    batch_size = 32
+    batch_size = 64
     train_loader, test_loader = get_apnea_dataloader(batch_size)
 
     # start to train
-    train(model, train_loader, batch_size, cuda_avail)
+    # test in every epoch
+    train(model, train_loader, test_loader, batch_size)
 
     # start to test
-    test(model, test_loader, cuda_avail)
+    # test(model, test_loader)
 
 
 if __name__ == '__main__':
