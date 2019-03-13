@@ -6,7 +6,6 @@ class ApneaNet(nn.Module):
 
     def __init__(self, ):
         super(ApneaNet, self).__init__()
-        # self.bn = nn.BatchNorm1d(20)
         self.conv1 = nn.Sequential(
             nn.Conv1d(1, 20, 50),
             nn.BatchNorm1d(20),

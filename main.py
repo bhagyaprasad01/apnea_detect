@@ -11,7 +11,6 @@ def train(model, train_loader, test_loader, batch_size):
     model.train()
 
     # for plot
-    # lost_list = []
     acc_list = []
 
     start_epoch = 0
@@ -22,8 +21,10 @@ def train(model, train_loader, test_loader, batch_size):
     criterion = nn.CrossEntropyLoss()
 
     # TODO: try other optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.005)
-    # optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+    # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.5)
+    # optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    lr = 0.001     # init
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     for epoch in range(start_epoch, total_epoch):
         print('\n-----> epoch %d ' % epoch)
@@ -48,8 +49,10 @@ def train(model, train_loader, test_loader, batch_size):
             running_loss += loss.item()
             if i % batch_size == 0:
                 total_loss += running_loss / batch_size
-                print(" [%d, %5d] loss : %.3f" % (epoch + 1, i + 1, running_loss / batch_size))
+                print(" [%d, %5d] loss : %.3f, lr:%f" % (epoch + 1, i + 1, running_loss / batch_size, lr))
                 running_loss = 0.0
+        if epoch % 20 == 0:
+            lr /= 10
         print('Testing')
         test_acc = test(model, test_loader)
         acc_list.append(test_acc)
@@ -58,7 +61,7 @@ def train(model, train_loader, test_loader, batch_size):
     total_loss = total_loss / len_of_batch
     print("[%d epoch loss :%.3f" % (epoch + 1, total_loss))
     total_loss = 0
-    plt.title('Adam Optimizer, batch size 64')
+    plt.title('SGD Optimizer, batch size=64, sr=50')
     plt.xlabel('epoch')
     plt.ylabel('acc')
     plt.plot(acc_list)
@@ -86,22 +89,19 @@ def test(model, loader):
 
 
 def main():
-    # get my awesome model
+    # get my model
     model = get_apnea_model()
 
     # assuming you have a GPU
     model.cuda()
 
     # get dataset loader
-    batch_size = 64
+    batch_size = 32
     train_loader, test_loader = get_apnea_dataloader(batch_size)
 
     # start to train
     # test in every epoch
     train(model, train_loader, test_loader, batch_size)
-
-    # start to test
-    # test(model, test_loader)
 
 
 if __name__ == '__main__':

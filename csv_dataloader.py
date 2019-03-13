@@ -5,6 +5,12 @@ import pandas as pd
 import scipy.signal as signal
 
 
+"""
+dataset is raw signal from Piezoelectric Ceramics. 
+every sample is 10s with 50hz
+"""
+
+
 # TODO： BUG:skip 1st sample when load dataset
 class CSVDataset(data.Dataset):
 
