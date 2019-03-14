@@ -7,7 +7,7 @@ import scipy.signal as signal
 
 """
 dataset is raw signal from Piezoelectric Ceramics. 
-every sample is 10s with 50hz
+every sample is 2channel with 10s  200hz
 """
 
 
@@ -18,12 +18,11 @@ class CSVDataset(data.Dataset):
         df = pd.read_csv(path)
         x, y = list(), list()
         for index, row in df.iterrows():
-            # from 50hz resample to 200hz
             sig = row[:-1]
-            sig = signal.resample_poly(sig, 200, 50)
-            # add one dim
             sig = torch.Tensor(sig)
-            sig = sig.unsqueeze(0)
+            # resize to [2*2000]
+            sig = sig.view(2, -1)
+            # sig = sig.unsqueeze(0)
             x.append(sig)
             y.append(int(row[-1]))
         self.X = torch.stack(x)

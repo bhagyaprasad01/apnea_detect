@@ -1,107 +1,154 @@
+import sys
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from csv_dataloader import get_apnea_dataloader
 from apneanet import get_apnea_model
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
+import time
 
 
-def train(model, train_loader, test_loader, batch_size):
-    model.train()
+args = {
+        # hyperparameter
+        'batch_size': 64,
+        'lr': 0.005,      # learning rate
+        'weight_decay': 0.001,
+        'num_epochs': 60
+    }
 
+
+def train(args):
     # for plot
-    acc_list = []
+    train_acc = []
+    train_loss = []
+    eval_acc = []
+    eval_loss = []
 
-    start_epoch = 0
-    total_epoch = 100
-    total_loss = 0
+    # hyperparameter
+    batch_size = args['batch_size']
+    lr = args['lr']
+    weight_decay = args['weight_decay']
+    num_epochs = args['num_epochs']
 
-    # TODO: use some advanced parameters
+    # get model
+    model = get_apnea_model()
+    # assuming you have a GPU
+    model.cuda()
+
+    # get dataset loader
+    train_loader, test_loader = get_apnea_dataloader(batch_size)
+
+    # define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
 
-    # TODO: try other optimizer
-    # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.5)
-    # optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    lr = 0.001     # init
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    # log
+    best_acc = 0
+    log_interval = 1
+    test_interval = 1
 
-    for epoch in range(start_epoch, total_epoch):
-        print('\n-----> epoch %d ' % epoch)
+    # start training
+    model.train()
+    start_time = time.time()
+    for epoch in range(num_epochs):
+        print('epoch {}'.format(epoch + 1))
+        print('*' * 10)
+        running_acc = 0.0
         running_loss = 0.0
-        print("len(train_loader) % batch_size :", round(len(train_loader) / batch_size))
-        len_of_batch = round(len(train_loader) / batch_size)
-
-        for i, (inputs, labels) in enumerate(train_loader):
+        for steps, (inputs, labels) in enumerate(train_loader):
             inputs = Variable(inputs.cuda())
             labels = Variable(labels.cuda())
 
             optimizer.zero_grad()
 
+            # Forward
             outputs = model(inputs)
-
+            # print(outputs.shape)
             loss = criterion(outputs, labels)
 
+            # BackPropagation
             loss.backward()
-
             optimizer.step()
-
+            # ========================= Log ======================
+            if steps % log_interval == 0:
+                corrects = (torch.max(outputs, 1)[1].view(labels.size()).data == labels.data).sum()
+                accuracy = 100.0 * corrects / batch_size
+                sys.stdout.write(
+                    '\rBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})'.format(steps + 1,
+                                                                             loss.item(),
+                                                                             accuracy,
+                                                                             corrects,
+                                                                             batch_size))
             running_loss += loss.item()
-            if i % batch_size == 0:
-                total_loss += running_loss / batch_size
-                print(" [%d, %5d] loss : %.3f, lr:%f" % (epoch + 1, i + 1, running_loss / batch_size, lr))
-                running_loss = 0.0
-        if epoch % 20 == 0:
-            lr /= 10
-        print('Testing')
-        test_acc = test(model, test_loader)
-        acc_list.append(test_acc)
-
-    print('Finished Training')
-    total_loss = total_loss / len_of_batch
-    print("[%d epoch loss :%.3f" % (epoch + 1, total_loss))
-    total_loss = 0
-    plt.title('SGD Optimizer, batch size=64, sr=50')
+            running_acc += accuracy.item()
+        train_loss.append(running_loss / len(train_loader))
+        train_acc.append(running_acc / len(train_loader))
+        if (epoch + 1) % 20 == 0:
+            optimizer.param_groups[0]['lr'] = lr/10
+        print("\n[epoch {} - loss:{:.6f} acc{:.3f}".format(epoch + 1,
+                                                           running_loss / len(train_loader),
+                                                           running_acc / len(train_loader)))
+        print('Evaluating {}'.format(epoch + 1))
+        dev_acc, dev_loss = eval(model, test_loader)
+        eval_acc.append(dev_acc)
+        eval_loss.append(dev_loss)
+        if dev_acc > best_acc:
+            best_acc = dev_acc
+    print('Finished Training, using {} seconds'.format(round(time.time()-start_time)))
+    print('Best accuracy in evaluation set: {}'.format(best_acc))
+    plt.title('train')
     plt.xlabel('epoch')
-    plt.ylabel('acc')
-    plt.plot(acc_list)
+    plt.ylabel('accuracy')
+    plt.plot(train_acc)
+    plt.show()
+    plt.title('train')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.plot(train_loss)
+    plt.show()
+    plt.title('evaluation')
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.plot(eval_acc)
+    plt.show()
+    plt.title('evaluation')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.plot(eval_loss)
     plt.show()
 
 
-def test(model, loader):
+def eval(model, test_loader):
     model.eval()
-    correct = 0
-    total = 0
-    # with torch.no_grad():
-    for data in loader:
-        inputs, labels = data
+    corrects, avg_loss = 0, 0
+    for steps, (inputs, labels) in enumerate(test_loader):
         inputs = Variable(inputs.cuda())
         labels = Variable(labels.cuda())
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
 
-    test_acc = 100 * correct / total
-    print('Accuracy of the network on the %d test signals: %d %%' % (
-            total, test_acc))
-    return test_acc
+        outputs = model(inputs)
+        loss = F.cross_entropy(outputs, labels)
+
+        avg_loss += loss.item()
+        corrects += (torch.max(outputs, 1)
+                     [1].view(labels.size()).data == labels.data).sum()
+
+    size = len(test_loader.dataset)
+    avg_loss /= size
+    accuracy = 100.0 * corrects/size
+    print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
+                                                                       accuracy,
+                                                                       corrects,
+                                                                       size))
+    return accuracy, avg_loss
 
 
 def main():
-    # get my model
-    model = get_apnea_model()
-
-    # assuming you have a GPU
-    model.cuda()
-
-    # get dataset loader
-    batch_size = 32
-    train_loader, test_loader = get_apnea_dataloader(batch_size)
-
     # start to train
-    # test in every epoch
-    train(model, train_loader, test_loader, batch_size)
+    train(args)
 
 
 if __name__ == '__main__':

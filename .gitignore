@@ -160,3 +160,6 @@ fabric.properties
 
 .gitignore
 .idea/
+
+# dataset is too large to upload
+.data
