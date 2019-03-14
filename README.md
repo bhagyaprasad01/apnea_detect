@@ -1,5 +1,5 @@
 # Apnea Detection
-a deep learning implement about apnea detection by pytorch framework with 1d cnn(1d convolution)
+a deep learning implementation about apnea detection by pytorch framework with 1d cnn(1d convolution)
  
 ## Environment
 - Python 3.7
@@ -10,7 +10,7 @@ a deep learning implement about apnea detection by pytorch framework with 1d cnn
 
 ## dataset
 The data set was collected from a smart mattress based on piezoelectric ceramics at zhoupu hospital 
-through yueyang medical technology co., LTD. 
+through YueYang medical technology co., LTD. 
 
 apnea events are derived from PSG
 
