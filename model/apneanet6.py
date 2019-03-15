@@ -1,7 +1,6 @@
 import torch.nn as nn
 
 
-# TODO: add BN between every convolution layers
 class ApneaNet(nn.Module):
 
     def __init__(self, ):
@@ -11,6 +10,7 @@ class ApneaNet(nn.Module):
             nn.Conv1d(2, 20, 50),
             nn.BatchNorm1d(20),
             nn.ReLU(),
+            nn.MaxPool1d(2)
         )
         self.conv2 = nn.Sequential(
             nn.Conv1d(20, 20, 50),
@@ -44,27 +44,39 @@ class ApneaNet(nn.Module):
     def forward(self, x):
         """
         Input   Size
-        conv1   2*2000
-        conv2   20*1951
-        conv3   20*1902
-        conv4   24*1873
-        conv5   24*1844
-        conv6   24*1835
-        fc      12*16
+        conv1   [64, 2, 2000]
+        conv2   [64, 20, 975]
+        conv3   [64, 20, 926]
+        conv4   [64, 24, 897]
+        conv5   [64, 24, 868]
+        conv6   [64, 24, 859]
         """
-        x= self.bn(x)
-        x = self.conv1(x)
-        # in:20*1951
-        # out:20*1902
-        # TODO: add conv2 input to output
-        out = self.conv2(x)
-        out.sum(x.narrow(1, 0, 1901))
-        x = out
-        print('conv2 output:', x.shape)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.conv6(x)
+        x = self.bn(x)
+        conv1_output = self.conv1(x)    # conv1_output = conv2_input = [64, 20, 975]
+
+        # residual net
+        conv2_output = self.conv2(conv1_output)
+        conv2_input = conv1_output.narrow(2, 0, 926)  # tmp [64, 2, 975]
+        conv2_output += conv2_input
+
+        conv3_output = self.conv3(conv2_output)   # in:[64,20,926]
+        # conv3_input = conv2_output.narrow(2, 0, 897)
+        # print('conv3_input size: ', conv3_input.shape)
+        # tmp = torch.zeros(64, 4, 897).cuda()
+        # print('tmp size:', tmp.shape)
+        # conv3_output += torch.cat((conv3_input, tmp), 1)
+        # print('conv3_output size:', conv3_output.shape)
+
+        conv4_output = self.conv4(conv3_output)   # in:[64,24,897]
+        conv4_input = conv3_output.narrow(2, 0, 868)
+        conv4_output += conv4_input
+
+        conv5_output = self.conv5(conv4_output)   # in:[64,24,868]
+        conv5_input = conv4_output.narrow(2, 0, 859)
+        conv5_output += conv5_input
+
+        x = self.conv6(conv5_output)   # in:[64:24,859]
+        # conv5_input = conv5_output
         x = x.view(-1, 192)
         x = self.fc(x)
         x = self.softmax(x)

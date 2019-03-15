@@ -1,21 +1,20 @@
 import sys
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from csv_dataloader import get_apnea_dataloader
-from apneanet import get_apnea_model
+from model.apneanet6 import get_apnea_model
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 import time
+import util
 
 
 args = {
         # hyperparameter
         'batch_size': 64,
-        'lr': 0.005,      # learning rate
-        'weight_decay': 0.001,
+        'lr': 0.005,      # learning rate, best acc 71%
+        'weight_decay': 0.01,
         'num_epochs': 60
     }
 
@@ -24,8 +23,8 @@ def train(args):
     # for plot
     train_acc = []
     train_loss = []
-    eval_acc = []
-    eval_loss = []
+    test_acc = []
+    test_loss = []
 
     # hyperparameter
     batch_size = args['batch_size']
@@ -43,7 +42,7 @@ def train(args):
 
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    # optimizer = optim.Adam(model.parameters(), lr=lr)
+    # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
 
     # log
@@ -87,42 +86,27 @@ def train(args):
             running_acc += accuracy.item()
         train_loss.append(running_loss / len(train_loader))
         train_acc.append(running_acc / len(train_loader))
-        if (epoch + 1) % 20 == 0:
-            optimizer.param_groups[0]['lr'] = lr/10
+        # if (epoch + 1) % 20 == 0:
+        if epoch == 19:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
+        if epoch == 39:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
         print("\n[epoch {} - loss:{:.6f} acc{:.3f}".format(epoch + 1,
                                                            running_loss / len(train_loader),
                                                            running_acc / len(train_loader)))
         print('Evaluating {}'.format(epoch + 1))
-        dev_acc, dev_loss = eval(model, test_loader)
-        eval_acc.append(dev_acc)
-        eval_loss.append(dev_loss)
-        if dev_acc > best_acc:
-            best_acc = dev_acc
+        running_test_acc, running_test_loss = test(model, test_loader)
+        test_acc.append(running_test_acc)
+        test_loss.append(running_test_loss)
+        if running_test_acc > best_acc:
+            best_acc = running_test_acc
     print('Finished Training, using {} seconds'.format(round(time.time()-start_time)))
     print('Best accuracy in evaluation set: {}'.format(best_acc))
-    plt.title('train')
-    plt.xlabel('epoch')
-    plt.ylabel('accuracy')
-    plt.plot(train_acc)
-    plt.show()
-    plt.title('train')
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.plot(train_loss)
-    plt.show()
-    plt.title('evaluation')
-    plt.xlabel('epoch')
-    plt.ylabel('accuracy')
-    plt.plot(eval_acc)
-    plt.show()
-    plt.title('evaluation')
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.plot(eval_loss)
-    plt.show()
+    util.show_acc(train_acc, test_acc)
+    util.show_loss(train_loss, test_loss)
 
 
-def eval(model, test_loader):
+def test(model, test_loader):
     model.eval()
     corrects, avg_loss = 0, 0
     for steps, (inputs, labels) in enumerate(test_loader):
@@ -137,7 +121,7 @@ def eval(model, test_loader):
                      [1].view(labels.size()).data == labels.data).sum()
 
     size = len(test_loader.dataset)
-    avg_loss /= size
+    avg_loss /= len(test_loader)
     accuracy = 100.0 * corrects/size
     print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
                                                                        accuracy,
