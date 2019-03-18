@@ -12,9 +12,9 @@ import util
 
 args = {
         # hyperparameter
-        'batch_size': 64,
-        'lr': 0.005,      # learning rate, best acc 71%
-        'weight_decay': 0.01,
+        'batch_size': 500,
+        'lr': 0.001,      # learning rate, best acc 71%
+        'weight_decay': 0.001,
         'num_epochs': 60
     }
 
@@ -66,7 +66,6 @@ def train(args):
 
             # Forward
             outputs = model(inputs)
-            # print(outputs.shape)
             loss = criterion(outputs, labels)
 
             # BackPropagation
