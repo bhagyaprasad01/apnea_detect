@@ -3,20 +3,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 from csv_dataloader import get_apnea_dataloader
 from model.apneanet6 import get_apnea_model
 from torch.autograd import Variable
 import time
 import util
-
-
-args = {
-        # hyperparameter
-        'batch_size': 500,
-        'lr': 0.001,      # learning rate, best acc 71%
-        'weight_decay': 0.001,
-        'num_epochs': 60
-    }
 
 
 def train(args):
@@ -29,22 +22,20 @@ def train(args):
     # hyperparameter
     batch_size = args['batch_size']
     lr = args['lr']
-    weight_decay = args['weight_decay']
+    # weight_decay = args['weight_decay']
     num_epochs = args['num_epochs']
 
     # get model
     model = get_apnea_model()
     # assuming you have a GPU
     model.cuda()
-
     # get dataset loader
     train_loader, test_loader = get_apnea_dataloader(batch_size)
-
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
-
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.9, verbose=1, patience=3)
     # log
     best_acc = 0
     log_interval = 1
@@ -58,16 +49,14 @@ def train(args):
         print('*' * 10)
         running_acc = 0.0
         running_loss = 0.0
-        for steps, (inputs, labels) in enumerate(train_loader):
+        for steps, (inputs, labels, type_id) in enumerate(train_loader):
             inputs = Variable(inputs.cuda())
             labels = Variable(labels.cuda())
-
+            type_id = Variable(type_id.cuda())
             optimizer.zero_grad()
-
             # Forward
             outputs = model(inputs)
             loss = criterion(outputs, labels)
-
             # BackPropagation
             loss.backward()
             optimizer.step()
@@ -85,11 +74,11 @@ def train(args):
             running_acc += accuracy.item()
         train_loss.append(running_loss / len(train_loader))
         train_acc.append(running_acc / len(train_loader))
-        # if (epoch + 1) % 20 == 0:
-        if epoch == 19:
-            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
-        if epoch == 39:
-            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
+        scheduler.step(running_loss / len(train_loader))
+        # if epoch == 19:
+        #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
+        # if epoch == 39:
+        #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr']/10
         print("\n[epoch {} - loss:{:.6f} acc{:.3f}".format(epoch + 1,
                                                            running_loss / len(train_loader),
                                                            running_acc / len(train_loader)))
@@ -108,9 +97,10 @@ def train(args):
 def test(model, test_loader):
     model.eval()
     corrects, avg_loss = 0, 0
-    for steps, (inputs, labels) in enumerate(test_loader):
+    for steps, (inputs, labels, type_id) in enumerate(test_loader):
         inputs = Variable(inputs.cuda())
         labels = Variable(labels.cuda())
+        type_id = Variable(type_id.cuda())
 
         outputs = model(inputs)
         loss = F.cross_entropy(outputs, labels)
@@ -130,6 +120,13 @@ def test(model, test_loader):
 
 
 def main():
+    args = {
+        # hyperparameter
+        'batch_size': 256,
+        'lr': 0.001,  # learning rate, best acc 71%
+        'weight_decay': 0.9,
+        'num_epochs': 50
+    }
     # start to train
     train(args)
 

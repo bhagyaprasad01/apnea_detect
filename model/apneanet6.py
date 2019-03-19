@@ -17,41 +17,41 @@ class ApneaNet(nn.Module):
             nn.BatchNorm1d(20),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=0.25)
+            nn.Dropout(p=0.5)
         )
         self.conv3 = nn.Sequential(
             nn.Conv1d(20, 24, 30),
             nn.BatchNorm1d(24),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=0.25)
+            nn.Dropout(p=0.5)
         )
         self.conv4 = nn.Sequential(
             nn.Conv1d(24, 24, 30),
             nn.BatchNorm1d(24),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=0.25)
+            nn.Dropout(p=0.5)
         )
         self.conv5 = nn.Sequential(
             nn.Conv1d(24, 24, 10),
             nn.BatchNorm1d(24),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=0.25)
+            nn.Dropout(p=0.5)
         )
         self.conv6 = nn.Sequential(
             nn.Conv1d(24, 12, 10),
             nn.BatchNorm1d(12),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=0.25)
+            nn.Dropout(p=0.5)
         )
         self.fc = nn.Linear(192, 2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = self.bn(x)
+        # x = self.bn(x)
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
