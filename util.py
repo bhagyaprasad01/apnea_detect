@@ -19,3 +19,11 @@ def show_loss(train_loss, test_loss):
     plt.ylabel('loss')
     plt.legend()
     plt.show()
+
+
+def evaluation_result(pred, labels, tp, tn, fn, fp):
+    tp += ((pred == 1) & (labels.data == 1)).sum()
+    tn += ((pred == 0) & (labels.data == 0)).sum()
+    fn += ((pred == 0) & (labels.data == 1)).sum()
+    fp += ((pred == 1) & (labels.data == 0)).sum()
+    return

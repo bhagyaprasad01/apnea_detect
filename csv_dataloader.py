@@ -45,7 +45,7 @@ def get_tensor(path):
     :return:
     """
     # load csv from folder
-    pos_files = glob.glob(os.path.join(path, "osa-201807*.csv"))
+    pos_files = glob.glob(os.path.join(path, "osa-20180711.csv"))
     neg_files = os.path.join(path, "normal.csv")
     df_from_pos_files = (pd.read_csv(f, header=None) for f in pos_files)
     df_pos = pd.concat(df_from_pos_files, ignore_index=True)
