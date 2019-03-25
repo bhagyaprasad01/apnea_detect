@@ -11,7 +11,8 @@ def calc_weight(label, num_classes):
     return weight
 
 
-def plot_result(train_loss, test_loss, train_acc, test_acc):
+# def plot_result(train_loss, test_loss, train_acc, test_acc):
+def plot_result(train_loss, test_loss, train_acc, test_acc, train_ma_acc, test_ma_acc):
     plt.subplots()
     plt.plot(train_acc, label='train_acc')
     plt.plot(test_acc, label='test_acc')
@@ -25,5 +26,13 @@ def plot_result(train_loss, test_loss, train_acc, test_acc):
     plt.plot(test_loss, label='test_loss')
     plt.xlabel('epoch')
     plt.ylabel('loss')
+    plt.legend()
+    plt.show()
+
+    plt.subplots()
+    plt.plot(train_ma_acc, label='train_ma_acc')
+    plt.plot(test_ma_acc, label='test_ma_acc')
+    plt.xlabel('epoch')
+    plt.ylabel('manual accuracy')
     plt.legend()
     plt.show()

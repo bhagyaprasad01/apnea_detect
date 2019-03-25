@@ -27,16 +27,16 @@ class ApneaNet5x1(nn.Module):
             # nn.BatchNorm1d(30),
             nn.ReLU(),
             nn.MaxPool1d(2),
-            nn.Dropout(p=dropout)
+            nn.Dropout(p=0.25)
         )
-        self.fc = nn.Linear(-1, 1)
+        self.fc = nn.Linear(60, 2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        x = x.view(120, 1)
+        x = x.view(-1, 60)
         x = self.fc(x)
-        # x = self.softmax(x)
+        x = self.softmax(x)
         return x
